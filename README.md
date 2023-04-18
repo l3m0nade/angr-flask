@@ -1,3 +1,7 @@
+make the firmware analyzed by angr unfolded in simple vue-flask
+
+
+
 # my-app-test1
 
 ## Project setup
@@ -22,3 +26,4 @@ npm run lint
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
