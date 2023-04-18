@@ -1,10 +1,14 @@
-make the firmware analyzed by angr unfolded in simple vue-flask
+# Angr based tool to make the firmware analyzed and unfolded by simple vue-flask
 
+## backend
 
+```
+pip install -r requirements
+```
 
-# my-app-test1
+## my-app-test1
 
-## Project setup
+### Project setup
 ```
 npm install
 ```
@@ -24,6 +28,6 @@ npm run build
 npm run lint
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
-
+## env
+* Ubuntu 22.04
+* python 3.8.10
