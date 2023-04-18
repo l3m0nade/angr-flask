@@ -1,0 +1,6 @@
+angr==9.2.46
+Flask==2.0.2
+Flask-Cors==3.0.10
+pydot==1.4.2
+python-dotenv==1.0.0
+python-utils==3.5.2
