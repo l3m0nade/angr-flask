@@ -8,8 +8,7 @@ def process(binary_path):
     # 将 stdout 输出
     func_name = 'doSystem'
     arg_pos = 1
-    rda.check_function(binary_path,func_name,arg_pos)
-    #sys.stdout.write("Some output")
+    vuln_funcs = rda.check_function(binary_path,func_name,arg_pos)
 
 if __name__ == "__main__":
     binary_path = sys.argv[1]

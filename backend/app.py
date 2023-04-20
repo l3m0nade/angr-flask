@@ -1,3 +1,4 @@
+from unittest import result
 from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
 from flask_cors import CORS
 #from flask_socketio import SocketIO, emit
@@ -53,10 +54,13 @@ def upload_file():
         # 拼接地址，上传地址，f.filename：直接获取文件名
         if file:
             filename = file.filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            result = subprocess.run(['python', 'process.py', file_dir + '/' + filename], capture_output=True, text=True)
+            target = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(target)
+            subprocess.call(["python","process.py",target])
+            report_file = target.replace("upload","output")+"/report.txt"
+            result = open(report_file,"r").read()
             print("result:",result)
-            return render_template('index.html', result=result.stdout)
+            return render_template('index.html', result=result)
         
         print("debug3",request.url)
         return redirect('/')    

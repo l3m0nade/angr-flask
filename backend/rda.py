@@ -8,15 +8,15 @@ from angr.knowledge_plugins.key_definitions.tag import ReturnValueTag,InitialVal
 from angr.analyses.reaching_definitions.function_handler import FunctionHandler
 from angr.knowledge_plugins.key_definitions.atoms import Register
 
-def magic_graph_print(folder,filename, dependency_graph):
-    path_and_filename = "/home/l3m0nade/Desktop/Code/angr-iot/angr-iot2/angr-iot/output/%s/%s"%(folder,filename)
-    print(path_and_filename)
+def magic_graph_print(folder,func_name, dependency_graph):
+    output_path = folder.replace("upload","output")
+    if not os.path.exists(output_path):
+        os.system("mkdir -p %s"%output_path)
+    path_and_filename = "%s/%s"%(output_path,func_name)
+
     write_dot(dependency_graph, "%s.dot" % path_and_filename)
     os.system("dot -Tsvg -o %s.svg %s.dot" % (path_and_filename, path_and_filename))
-    os.system("rm -rf /home/l3m0nade/Desktop/Code/angr-iot/angr-iot2/angr-iot/output/%s/*.dot"%folder)
-
-
-
+    os.system("rm -rf %s/*.dot"%output_path)
 
 
 class myHandler(FunctionHandler):
@@ -189,7 +189,7 @@ class VunChecker():
 
     
 def check_function(target,func_name,arg_pos):
-    #filename = "./sample/%s"%target
+    vuln_funcs = []
     filename = target
     project = Project(filename,auto_load_libs=False)
     cfg = project.analyses.CFGFast()
@@ -249,17 +249,20 @@ def check_function(target,func_name,arg_pos):
                 checker = VunChecker(project,rd.dep_graph)
                 source_defs = checker.check(reg_definition)
                 if source_defs:
-                    #reg_dependencies = rd.dep_graph.transitive_closure(reg_definition)
-                    #magic_graph_print(target,"sub_{}".format(hex(func_pred_addr)[2:]),reg_dependencies)
-                    print("possible vunlerable function at sub_{}".format(hex(func_pred_addr)[2:]))
+                    reg_dependencies = rd.dep_graph.transitive_closure(reg_definition)
+                    magic_graph_print(target,"sub_{}".format(hex(func_pred_addr)[2:]),reg_dependencies)
+                    # print("possible vunlerable function at sub_{}".format(hex(func_pred_addr)[2:]))
+                    vuln_funcs.append("sub_{}".format(hex(func_pred_addr)[2:]))
             except Exception as e:
                 print("reaching definition error occured")
                 print(e)
-
-'''
-func_name = "doSystem"
-arg_pos = 1
-target = "mipsel-bin2"
-check_function(target,func_name,arg_pos)
-
-'''
+    report_data = ""
+    if vuln_funcs:
+        for vuln in vuln_funcs:
+            report_data += "%s\n"%vuln
+    else:
+        report_data = "no vulnerable functions.\n" 
+    report_file = target.replace("upload","output")+"/report.txt"
+    with open(report_file,"w") as f:
+        f.write(report_data)
+    return vuln_funcs
