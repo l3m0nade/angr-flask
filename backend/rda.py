@@ -1,19 +1,26 @@
 from angr import Project
 from angr.knowledge_plugins.key_definitions.constants import OP_BEFORE
 from angr.analyses.reaching_definitions.dep_graph import DepGraph
+from angr.misc.loggers import Loggers
+import logging
 import os
+import sys
 from pathlib import Path
 from networkx.drawing.nx_agraph import write_dot
 from angr.knowledge_plugins.key_definitions.tag import ReturnValueTag,InitialValueTag
 from angr.analyses.reaching_definitions.function_handler import FunctionHandler
 from angr.knowledge_plugins.key_definitions.atoms import Register
 
-def magic_graph_print(folder,filename, dependency_graph):
-    path_and_filename = "/home/l3m0nade/Desktop/Code/angr-iot/angr-iot2/angr-iot/output/%s/%s"%(folder,filename)
-    print(path_and_filename)
+
+
+def magic_graph_print(folder,func_name, dependency_graph):
+    output_path = folder.replace("upload","output")
+    if not os.path.exists(output_path):
+        os.system("mkdir -p %s"%output_path)
+    path_and_filename = "%s/%s"%(output_path,func_name)
     write_dot(dependency_graph, "%s.dot" % path_and_filename)
     os.system("dot -Tsvg -o %s.svg %s.dot" % (path_and_filename, path_and_filename))
-    os.system("rm -rf /home/l3m0nade/Desktop/Code/angr-iot/angr-iot2/angr-iot/output/%s/*.dot"%folder)
+    os.system("rm -rf %s/*.dot"%output_path)
 
 
 
@@ -62,7 +69,8 @@ class myHandler(FunctionHandler):
                 return i.name
         return "None"
 
-
+    # run and exception???
+    '''
     def handle_sprintf(self,state,codeloc):
         # print("handle sprintf !!!")
         # print("current state is {}".format(state))
@@ -89,7 +97,7 @@ class myHandler(FunctionHandler):
         state.analysis.dep_graph.add_edge(src_def,dst_def)
 
         return True,state
-    
+    '''
     def handle_snprintf(self,state,codeloc):
         # print("handle sprintf !!!")
         # print("current state is {}".format(state))
@@ -157,9 +165,11 @@ class myHandler(FunctionHandler):
 
 
         # 更新a0 和 几个参数之间的依赖关系
-        dst_def.tags.add("doSystem handler")
-        for src_def in reg_defs:
-            state.analysis.dep_graph.add_edge(src_def,dst_def)
+        # sometime dst_def is None
+        if dst_def:
+            dst_def.tags.add("doSystem handler")
+            for src_def in reg_defs:
+                state.analysis.dep_graph.add_edge(src_def,dst_def)
 
 
         return True,state
@@ -190,11 +200,16 @@ class VunChecker():
     
 def check_function(target,func_name,arg_pos):
     #filename = "./sample/%s"%target
+    vuln_funcs = []
     filename = target
     project = Project(filename,auto_load_libs=False)
     cfg = project.analyses.CFGFast()
     project.analyses.CompleteCallingConventions(recover_variables=True)
-    reg_name = project.kb.functions[func_name].calling_convention.ARG_REGS[arg_pos-1]
+    try:
+        reg_name = project.kb.functions[func_name].calling_convention.ARG_REGS[arg_pos-1]
+    except Exception as e:
+        print("[!] Exception ",e)
+        return
     # 目标函数地址
     func_addr = project.kb.functions[func_name].addr
     # 获取cfg中目标地址的节点
@@ -232,34 +247,40 @@ def check_function(target,func_name,arg_pos):
 
             observation_point = ("insn",call_to_xref_addr,OP_BEFORE)
             
-            try:
-                # depgraph = DepGraph()
-                # handler = myHandler(project,cfg,func_pred.addr)
-                rd = project.analyses.ReachingDefinitions(
-                    subject = func_pred,
-                    func_graph = func_pred.graph,
-                    cc = func_pred.calling_convention,
-                    observation_points = [observation_point],
-                    function_handler = myHandler(project,cfg,func_pred.addr),
-                    dep_graph = DepGraph()
-                )
-                results = rd.observed_results[observation_point]
-                reg = project.arch.get_register_by_name(reg_name)
-                reg_definition = list(results.get_register_definitions(reg.vex_offset,reg.size))[0]
-                checker = VunChecker(project,rd.dep_graph)
-                source_defs = checker.check(reg_definition)
-                if source_defs:
-                    #reg_dependencies = rd.dep_graph.transitive_closure(reg_definition)
-                    #magic_graph_print(target,"sub_{}".format(hex(func_pred_addr)[2:]),reg_dependencies)
-                    print("possible vunlerable function at sub_{}".format(hex(func_pred_addr)[2:]))
-            except Exception as e:
-                print("reaching definition error occured")
-                print(e)
 
-'''
-func_name = "doSystem"
-arg_pos = 1
-target = "mipsel-bin2"
-check_function(target,func_name,arg_pos)
+            
+            # depgraph = DepGraph()
+            # handler = myHandler(project,cfg,func_pred.addr)
+            rd = project.analyses.ReachingDefinitions(
+                subject = func_pred,
+                func_graph = func_pred.graph,
+                cc = func_pred.calling_convention,
+                observation_points = [observation_point],
+                function_handler = myHandler(project,cfg,func_pred.addr),
+                dep_graph = DepGraph()
+            )
+            results = rd.observed_results[observation_point]
+            reg = project.arch.get_register_by_name(reg_name)
+            reg_definition = list(results.get_register_definitions(reg.vex_offset,reg.size))[0]
+            checker = VunChecker(project,rd.dep_graph)
+            source_defs = checker.check(reg_definition)
+            if source_defs:
+                reg_dependencies = rd.dep_graph.transitive_closure(reg_definition)
+                magic_graph_print(target,"sub_{}".format(hex(func_pred_addr)[2:]),reg_dependencies)
+                print("possible vunlerable function at sub_{} has a {} bug".format(hex(func_pred_addr)[2:],func_name))
+                vuln_funcs.append("sub_{}".format(hex(func_pred_addr)[2:]))
+                
+                
+        
+    report_data = ""
+    if vuln_funcs:
+        for vuln in vuln_funcs:
+            report_data += "%s\n"%vuln
+    else:
+        report_data = "no vulnerable functions.\n" 
+    report_file = target.replace("upload","output")+"/report.txt"
+    with open(report_file,"w") as f:
+        f.write(report_data)
+    return vuln_funcs
 
-'''
+

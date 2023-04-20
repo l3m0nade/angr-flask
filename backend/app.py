@@ -1,35 +1,39 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
+from flask import Flask, render_template, request, redirect, send_file, jsonify, Response
 from flask_cors import CORS
 #from flask_socketio import SocketIO, emit
 import os
 import subprocess
+import json
 
 app = Flask(__name__)
-'''
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app)
-'''
 
+
+# configuration
 UPLOAD_FOLDER = os.path.abspath('upload')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 file_dir = app.config['UPLOAD_FOLDER']
 CORS(app, resources=r'/*')
-# configuration
 DEBUG = True
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
-    # 渲染文件
-    return render_template('upload.html')
 
-@app.route('/cfg',methods=['POST'])
-#@cross_origin(origin="localhost:8080")
-def cfg():
+@app.route('/getJson', methods=['GET', 'POST'])
+def getJson():
     pass
+
+
+@app.route('/cfg',methods=['get','POST'])
+#@cross_origin(origin="localhost:8080")
+def getCFG():
+    file = request.files['file']
+    if file:
+        filename = file.filename
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        subprocess.run(['python', 'cfg_display.py', file_dir + '/' + filename])
+        return send_file("cfg_output.svg")
 
 
 @app.route('/upload_file',methods=['POST'])
@@ -38,7 +42,6 @@ def upload_file():
     """
         文件上传
     """
-    
     if request.method == 'POST':
         if 'file' not in request.files:
             print("debug1",request.url)
@@ -52,27 +55,36 @@ def upload_file():
 
         # 拼接地址，上传地址，f.filename：直接获取文件名
         if file:
+            out_dir = "output"
             filename = file.filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            result = subprocess.run(['python', 'process.py', file_dir + '/' + filename], capture_output=True, text=True)
-            print("result:",result)
-            return render_template('index.html', result=result.stdout)
-        
-        print("debug3",request.url)
+            '''
+            # using file to store text and return text
+            subprocess.call(["python","process.py",target])
+            report_file = target.replace("upload","output")+"/report.txt"
+            result = open(report_file,"r").read()
+            '''
+
+            # using json
+            target = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(target)
+            #result = subprocess.run(['python', 'process.py', file_dir + '/' + filename], capture_output=True, text=True)
+            result = subprocess.check_output(['python', 'process.py', target])
+            result = result.decode().split('\n')
+            resultJson = []
+            for i in result:
+                resultJson.append({"result":i})
+            print("resultJson:",resultJson)
+            with open(out_dir + '/' + filename + ".json","w") as fp:
+                json.dump(resultJson,fp)
+                fp.close()
+            return jsonify({'result': result.split('\n')})
+                
+
         return redirect('/')    
     else:
-        return render_template('upload.html')
-    
-    
-'''
-    # 调用 process.py 处理二进制文件并获取 stdout
-    process = subprocess.Popen(["python", "process.py", binary_path], stdout=subprocess.PIPE)
-    output, _ = process.communicate()
-    print("output:",output)
 
-    # 返回 stdout
-    return Response(output, mimetype="text/plain")
-'''
+        return redirect('/')  
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
