@@ -4,13 +4,15 @@ from flask_cors import CORS
 import os
 import subprocess
 import json
+import time
+from cfgexplorer import cfg_explore
 
 app = Flask(__name__)
-
 
 # configuration
 UPLOAD_FOLDER = os.path.abspath('upload')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['FLASK_ENV'] = "development"
 file_dir = app.config['UPLOAD_FOLDER']
 CORS(app, resources=r'/*')
 DEBUG = True
@@ -25,15 +27,37 @@ def getJson():
     pass
 
 
-@app.route('/cfg',methods=['get','POST'])
+@app.route('/getCFG',methods=['get','POST'])
 #@cross_origin(origin="localhost:8080")
 def getCFG():
     file = request.files['file']
     if file:
         filename = file.filename
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        subprocess.run(['python', 'cfg_display.py', file_dir + '/' + filename])
-        return send_file("cfg_output.svg")
+        # delete cfg_output.cfg if exist
+        if os.path.exists("cfg_output.svg"):
+            os.remove("cfg_output.svg")
+        if os.path.exists("../frontend/public/cfg_output.svg"): 
+            os.remove("../frontend/public/cfg_output.svg")
+        cfg_explore(file_dir + '/' + filename,launch=False,output='./cfg_output.svg')
+        print("waiting")
+        '''
+        time for cfg_output.cfg generation,synchronous problem
+        '''
+        while not os.path.exists("cfg_output.svg"):
+            time.sleep(1)
+            print("waiting waiting")
+        # subprocess.run(['python', 'cfg_display.py', file_dir + '/' + filename])
+        print("file  finish")
+        if os.path.exists("cfg_output.svg"):
+            # ugly way to console the response
+            subprocess.run(['mv','cfg_output.svg','../frontend/public'])
+            #return send_file("cfg_output.svg")
+            return "cfg_output.svg"
+        else:
+            print("cfg_output.svg not exist\n")
+        
+        
 
 
 @app.route('/upload_file',methods=['POST'])
