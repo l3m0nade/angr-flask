@@ -21,6 +21,7 @@ def magic_graph_print(folder,func_name, dependency_graph):
     write_dot(dependency_graph, "%s.dot" % path_and_filename)
     os.system("dot -Tsvg -o %s.svg %s.dot" % (path_and_filename, path_and_filename))
     os.system("rm -rf %s/*.dot"%output_path)
+    
 
 
 
@@ -267,7 +268,7 @@ def check_function(target,func_name,arg_pos):
             if source_defs:
                 reg_dependencies = rd.dep_graph.transitive_closure(reg_definition)
                 magic_graph_print(target,"sub_{}".format(hex(func_pred_addr)[2:]),reg_dependencies)
-                print("possible vunlerable function at sub_{} has a {} bug".format(hex(func_pred_addr)[2:],func_name))
+                print("possible vunlerable function at sub_{}\n".format(hex(func_pred_addr)[2:]))
                 vuln_funcs.append("sub_{}".format(hex(func_pred_addr)[2:]))
                 
                 
@@ -278,6 +279,7 @@ def check_function(target,func_name,arg_pos):
             report_data += "%s\n"%vuln
     else:
         report_data = "no vulnerable functions.\n" 
+        print("no vulnerable functions.\n" )
     report_file = target.replace("upload","output")+"/report.txt"
     with open(report_file,"w") as f:
         f.write(report_data)

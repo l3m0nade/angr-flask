@@ -22,11 +22,6 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/getJson', methods=['GET', 'POST'])
-def getJson():
-    pass
-
-
 @app.route('/getCFG',methods=['get','POST'])
 #@cross_origin(origin="localhost:8080")
 def getCFG():
@@ -79,7 +74,7 @@ def upload_file():
 
         # 拼接地址，上传地址，f.filename：直接获取文件名
         if file:
-            out_dir = "output"
+            out_dir = "../frontend/public"
             filename = file.filename
             '''
             # using file to store text and return text
@@ -93,15 +88,14 @@ def upload_file():
             file.save(target)
             #result = subprocess.run(['python', 'process.py', file_dir + '/' + filename], capture_output=True, text=True)
             result = subprocess.check_output(['python', 'process.py', target])
-            result = result.decode().split('\n')
-            resultJson = []
-            for i in result:
-                resultJson.append({"result":i})
-            print("resultJson:",resultJson)
-            with open(out_dir + '/' + filename + ".json","w") as fp:
-                json.dump(resultJson,fp)
-                fp.close()
-            return jsonify({'result': result.split('\n')})
+            result = open(f"output/{filename}/report.txt").read()
+            # result.decode().split('\n')
+            # ugly let sub_xxxx.svg cp in front/public/
+            os.system(f"cp output/{filename}/sub*.svg {out_dir}")
+           
+            return jsonify({'result': result})
+            #return filename + ".json"
+            
                 
 
         return redirect('/')    

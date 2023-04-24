@@ -3,10 +3,11 @@
 ## backend
 
 ```
+sudo apt install graphviz libgraphviz-dev pkg-config
 pip install -r requirements
 ```
 
-## my-app-test1
+## frontend
 
 ### Project setup
 ```

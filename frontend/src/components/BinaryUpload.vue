@@ -24,9 +24,12 @@
       <v-card-title>Output:</v-card-title>
       <v-card-text>{{ output }}</v-card-text>
       </v-card>
-
-      <v-data-table ref="MyTable" :headers="analysis" :items="output"></v-data-table>
-
+      
+      
+      <div v-for="(file, index) in this.output" :key="index">
+        <img :src="`${file}.svg`" />
+        <v-divider></v-divider>
+      </div>
       
     </v-container>
 
@@ -43,19 +46,9 @@
       return {
         selectedFile: null,
         loading: false,
+        imageList: [],
+        imagePath:null,
         output:null,
-        analysis:[
-          {
-            text: 'Result', value: 'result'
-          }
-        ],
-        headers:[
-        {
-          result: 'Name123',
-          
-        }
-      ],
-
       }
     },
     computed: {
@@ -73,11 +66,22 @@
         ]
       }
     },
+    mounted() {
+    this.getData();
+    
+  },
+       
     methods: {
-      getResult (){
-        axios.get("http://127.0.0.1:5000/getjson")
+      getData (){
+        console.log("getData")
+        /*
+        files = require.context('@/assets/'+this.imagePath, true, /\.svg$/).keys();
+        console.log(files);
+        this.imageList = files
+        */
       },
       onSubmit () {
+        console.log(this.selectedFile.name)
         let formData = new FormData()
         formData.append('file', this.selectedFile)
         this.loading = true
@@ -86,13 +90,17 @@
             'Content-Type': 'multipart/form-data'
           }
         }).then(response => {
-          this.output = response.data.result.map(item => ({result: item}));
+          //this.output = response.data.result.map(item => ({result: item}));
+          this.output = response.data.result
           console.log(this.output);
-        }).catch(error => {
+        })
+        .catch(error => {
           console.error(error);
         }).finally(() => {
         this.loading = false
-
+        this.output = this.output.split("\n")
+        this.output.pop()
+        console.log(this.output)
         
       })
       }
@@ -100,3 +108,9 @@
   }
   
 </script>  
+
+
+<!--
+  .then(res => {
+            Vue.set(this.person,0,{age:res.data.age,name:res.data.name,sex:res.data.sex}))
+-->
